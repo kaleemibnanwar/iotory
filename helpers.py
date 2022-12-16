@@ -9,8 +9,11 @@ from os import system
 from bs4 import BeautifulSoup as soup
 import urllib3
 
+
+ 
 urllib3.disable_warnings()
-def http_checker(thread_lists,list_index,ports,output_file,thname,failed,timeout):
+
+def http_checker(thread_lists,list_index,ports,output_file,thname,failed,timeout,ss_driver):
 	com=0
 	for ip in thread_lists[list_index]:
 		for port in ports:
@@ -23,61 +26,35 @@ def http_checker(thread_lists,list_index,ports,output_file,thname,failed,timeout
 			scheme='http'
 			try:
 				if port=='443':
-					scheme='https'					
-				response = requests.get('{scheme}://{ip}:{port}/'.format(scheme=scheme,ip=ip,port=port),verify=False, timeout=timeout)
+					scheme='https'			
+				url='{scheme}://{ip}:{port}/'.format(scheme=scheme,ip=ip,port=port)		
+				response = requests.get(url,verify=False, timeout=timeout)
 				page = response.content
 				if 'Server' in response.headers:
 					server=response.headers['Server'].strip().replace('\n','')
 				page_soup = soup(page, "xml") 
-				title = page_soup.find("title")
-				title = title.text.strip()
-				title.replace(',',' ')
+
+				title = page_soup.find("title").text.strip().replace(',',' ')
+
 				if title == '':
 					title="[<blank>]"
+
 				port=str(str(port).replace('\n',''))
 				url=f'http://{ip}:{port}/'
 				data = f'{title},{server},{port},{url}\n'
 				pdata = f'{title} | {server} | {port} | http://{ip}:{port}/ | [{com}/{len(ports)*len(thread_lists[list_index])}]'
 				print(Fore.GREEN+pdata)
-				output_file.write(data)
+				if output_file!=None:
+					output_file.write(data)
+				if driver!=None:
+					driver,screenshots_path = ss_driver
+					driver.save_screenshot(screenshots_path+'/'+f'{title} {ip.replace(".","-")} {port}.png')
 			except:
 				if failed==True:
 					print(Fore.RED+f'Couldn\'t connect to http://{ip}:{port}'.replace('\n','')+'/')
 
+		
 
-
-def http_checker_nout(thread_lists,list_index,ports,thname,failed,timeout):
-	com=0
-	for ip in thread_lists[list_index]:
-		for port in ports:
-			session = requests.Session()
-			retry = Retry(connect=2, backoff_factor=0.5)
-			adapter = HTTPAdapter(max_retries=retry)
-			session.mount('http://', adapter)
-			com+=1
-			url=''
-			scheme='http'
-			try:
-				if port=='443':
-					scheme='https'					
-				response = requests.get('{scheme}://{ip}:{port}/'.format(scheme=scheme,ip=ip,port=port),verify=False, timeout=timeout)
-				page = response.content
-				if 'Server' in response.headers:
-					server=response.headers['Server'].strip().replace('\n','')
-				page_soup = soup(page, "xml") 
-				title = page_soup.find("title")
-				title = title.text.strip()
-				title.replace(',',' ')
-				if title == '':
-					title="[<blank>]"
-				port=str(str(port).replace('\n',''))
-				url='http://{ip}:{port}/'
-				data = f'{title},{server},{port},{url}\n'
-				pdata = f'{title} | {server} | {port} | http://{ip}:{port}/ | [{com}/{len(ports)*len(thread_lists[list_index])}]'
-				print(Fore.GREEN+pdata)
-			except:
-				if failed==True:
-					print(Fore.RED+f'Couldn\'t connect to http://{ip}:{port}'.replace('\n','')+'/')
 
 
 def lister(ips,thno):

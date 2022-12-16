@@ -1,4 +1,4 @@
-from helpers import threadlister, http_checker,http_checker_nout,file_to_list,lister, stopper, file_to_ips,cidr_to_ips,range_to_ips
+from helpers import threadlister, http_checker,file_to_list,lister, stopper, file_to_ips,cidr_to_ips,range_to_ips
 import threading,sys
 from tqdm import tqdm
 import urllib3
@@ -7,6 +7,12 @@ from time import sleep
 import argparse
 from colorama import Fore
 from argparse import RawTextHelpFormatter
+from selenium import webdriver
+from PIL import Image
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+
 ips=[]
 banner=Fore.GREEN+"""
                  hunt them!
@@ -27,6 +33,7 @@ parser.add_argument('-p','--ports',type=str, help='Ports to http servers')
 parser.add_argument('-P','--ports_list',type=str, help='Ports list for http servers')
 parser.add_argument('-t','--threads',type=int, help='Number of threads to work at a single time like 100 or 1000 depending upon your system. The more number threads means more speed')
 parser.add_argument('-o','--output',type=str, help='Output file path')
+parser.add_argument('-s','--screenshots',type=str, help='Take screenshots of found hosts.')
 parser.add_argument('-T','--timeout',type=int, help='Set timeout for requests.')
 parser.add_argument('-F','--failed',action='store_true', help='You can pass this parameter to see failed attempts.')
 args = parser.parse_args()
@@ -54,6 +61,9 @@ if args.failed:
 timeout=10
 if args.timeout:
 	timeout=args.timeout
+
+output_file=None
+
 if args.output:
 	output_file=open(args.output,'w+')
 	output_file.write('Title,Server,Port,Address\n')
@@ -71,20 +81,29 @@ system('rm -rf __pycache__')
 thread_lists=lister(ips,tes)
 no_threads=len(thread_lists)
 
+if args.screenshots:
+	options = Options()
+	options.headless = True
+	driver = webdriver.Chrome(ChromeDriverManager().install(), options=options)
+	screenshots_path = args.screenshots 
+	import os
+	if not os.path.exists(screenshots_path):
+	    os.makedirs(screenshots_path)
+	ss_driver = (driver,screenshots_path)
+else:
+	ss_driver = None
+
 print(Fore.GREEN+banner)
 try:
 	print(Fore.YELLOW+f'[{no_threads}] threads are going to start scaning')
-	sleep(3)
+	sleep(1)
 	total=len(ips)*len(ports)
 	com=0
-
 	scan=''
 	for i in range(no_threads):
-		if args.output:
-			t = threading.Thread(target=http_checker, args=(thread_lists,i,ports,output_file,scan,failed,timeout))
-		else:
-			t = threading.Thread(target=http_checker_nout, args=(thread_lists,i,ports,scan,failed,timeout))
+		t = threading.Thread(target=http_checker, args=(thread_lists,i,ports,output_file,scan,failed,timeout,ss_driver))
 		threads.append(t)
+
 	for thread in threads:
 		thread.start()
 	for thread in threads:
